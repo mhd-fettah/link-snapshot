@@ -1,5 +1,8 @@
 node_modules/
 dist/
+playwright/.cache/
+playwright-report/
+test-results/
 out/
 output/
 screenshots/
