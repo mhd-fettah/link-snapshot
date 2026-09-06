@@ -13,6 +13,8 @@ Desktop tool to paste a list of URLs and save full-page screenshots (and optiona
 
 Project scaffold only — implementation not started yet.
 
+See **[PLAN.md](PLAN.md)** for the full v1 implementation plan.
+
 ## License
 
 MIT
