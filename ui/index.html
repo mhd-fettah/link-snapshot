@@ -10,14 +10,29 @@
     <div class="app">
         <div class="app-main">
             <div class="url-area">
-                <div class="url-area-toolbar" id="urlAreaToolbar" hidden>
-                    <button type="button" class="text-btn" id="discardAllBtn">Discard all</button>
-                    <span class="link-count" id="linkCount"></span>
+                <div class="url-area-toolbar" id="urlAreaToolbar">
+                    <div class="toolbar-start">
+                        <button type="button" class="text-btn" id="loadLinksBtn">
+                            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 8.5V3.5M4.25 5.25 6 3.5l1.75 1.75M2.5 9.5h7" stroke="currentColor" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            Load Links
+                        </button>
+                        <span class="link-count" id="linkCount" hidden></span>
+                    </div>
                     <div class="capture-progress" id="captureProgress" hidden>
                         <div class="capture-progress-track">
                             <div class="capture-progress-fill" id="captureProgressFill"></div>
                         </div>
                         <span class="capture-progress-label" id="captureProgressLabel"></span>
+                    </div>
+                    <div class="toolbar-end">
+                        <button type="button" class="text-btn" id="saveLinksBtn" hidden>
+                            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 3.5v5M4.25 5.25 6 7.5l1.75-2.25M2.5 9.5h7" stroke="currentColor" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            Save Links
+                        </button>
+                        <button type="button" class="text-btn text-btn-danger" id="discardAllBtn" hidden>
+                            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 3h7M4.5 3V2.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1V3m1.5 0v6.5a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1V3h4.5z" stroke="currentColor" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            Discard all
+                        </button>
                     </div>
                 </div>
                 <div class="url-input-wrap" id="urlInputWrap">

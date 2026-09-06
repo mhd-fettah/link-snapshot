@@ -4,6 +4,8 @@ const { parseUrls } = require('../src/urls');
 contextBridge.exposeInMainWorld('api', {
     parseUrls,
     selectFolder: () => ipcRenderer.invoke('select-folder'),
+    saveLinks: (urls) => ipcRenderer.invoke('save-links', { urls }),
+    loadLinks: () => ipcRenderer.invoke('load-links'),
     getConfig: () => ipcRenderer.invoke('get-config'),
     setConfig: (partial) => ipcRenderer.invoke('set-config', partial),
     startCapture: (opts) => ipcRenderer.invoke('start-capture', opts),

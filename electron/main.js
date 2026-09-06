@@ -29,6 +29,12 @@ function resolveOutputDir(config) {
     return config.outputDir || app.getPath('downloads');
 }
 
+function defaultLinksFilename() {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `links-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}.txt`;
+}
+
 function createWindow() {
     const iconPath = path.join(__dirname, '..', 'build', 'icon.png');
     mainWindow = new BrowserWindow({
@@ -59,6 +65,37 @@ function sendProgress(payload) {
         mainWindow.webContents.send('capture-progress', payload);
     }
 }
+
+ipcMain.handle('save-links', async (event, { urls }) => {
+    const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+    if (!win || win.isDestroyed() || !urls?.length) return { ok: false };
+    win.focus();
+    const config = readConfig();
+    const result = await dialog.showSaveDialog(win, {
+        defaultPath: path.join(resolveOutputDir(config), defaultLinksFilename()),
+        filters: [{ name: 'Text Files', extensions: ['txt'] }, { name: 'All Files', extensions: ['*'] }],
+        title: 'Save Links',
+    });
+    if (result.canceled || !result.filePath) return { ok: false };
+    fs.writeFileSync(result.filePath, urls.join('\n') + '\n', 'utf8');
+    return { ok: true, filePath: result.filePath };
+});
+
+ipcMain.handle('load-links', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+    if (!win || win.isDestroyed()) return { ok: false };
+    win.focus();
+    const config = readConfig();
+    const result = await dialog.showOpenDialog(win, {
+        properties: ['openFile'],
+        defaultPath: resolveOutputDir(config),
+        filters: [{ name: 'Text Files', extensions: ['txt'] }, { name: 'All Files', extensions: ['*'] }],
+        title: 'Load Links',
+    });
+    if (result.canceled || !result.filePaths.length) return { ok: false };
+    const content = fs.readFileSync(result.filePaths[0], 'utf8');
+    return { ok: true, content };
+});
 
 ipcMain.handle('select-folder', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;

@@ -6,6 +6,8 @@ const urlCardsWrap = $('urlCardsWrap');
 const urlCards = $('urlCards');
 const urlAreaToolbar = $('urlAreaToolbar');
 const discardAllBtn = $('discardAllBtn');
+const saveLinksBtn = $('saveLinksBtn');
+const loadLinksBtn = $('loadLinksBtn');
 const linkCount = $('linkCount');
 const captureProgress = $('captureProgress');
 const captureProgressFill = $('captureProgressFill');
@@ -95,11 +97,20 @@ function setViewport(value, persist = true) {
 function updateLinkCount() {
     const n = urlItems.length;
     linkCount.textContent = `${n} link${n === 1 ? '' : 's'}`;
+    updateToolbarActions();
+}
+
+function updateToolbarActions() {
+    const hasLinks = urlItems.length > 0;
+    linkCount.hidden = !hasLinks;
+    saveLinksBtn.hidden = !hasLinks;
+    discardAllBtn.hidden = !hasLinks;
 }
 
 function setToolbarCaptureMode(on) {
-    discardAllBtn.hidden = on;
-    linkCount.hidden = on;
+    discardAllBtn.hidden = on || !urlItems.length;
+    saveLinksBtn.hidden = on || !urlItems.length;
+    linkCount.hidden = on || !urlItems.length;
     captureProgress.hidden = !on;
     if (!on) {
         captureProgressFill.style.width = '0%';
@@ -111,20 +122,49 @@ function showInputView() {
     urlItems = [];
     urlInputWrap.hidden = false;
     urlCardsWrap.hidden = true;
-    urlAreaToolbar.hidden = true;
     urlWell.value = '';
     urlWell.disabled = false;
+    updateToolbarActions();
     updateCaptureState();
 }
 
 function showCardView() {
     urlInputWrap.hidden = true;
     urlCardsWrap.hidden = false;
-    urlAreaToolbar.hidden = false;
     setToolbarCaptureMode(false);
     updateLinkCount();
     renderCards();
     updateCaptureState();
+}
+
+const ICON_CARD_DONE = '<svg width="14" height="14" viewBox="0 0 12 12" aria-hidden="true"><path d="M10 3L4.5 8.5 2 6" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function cardActionHtml(id) {
+    return `<div class="url-card-action">
+                <button type="button" class="url-card-discard" data-id="${id}" aria-label="Discard URL">×</button>
+                <span class="url-card-icon url-card-icon--loading" hidden aria-label="Processing"><span class="url-card-spinner"></span></span>
+                <span class="url-card-icon url-card-icon--done" hidden aria-label="Done">${ICON_CARD_DONE}</span>
+                <span class="url-card-icon url-card-icon--error" hidden aria-label="Failed">!</span>
+            </div>`;
+}
+
+function setCardActionState(card, state) {
+    const discard = card.querySelector('.url-card-discard');
+    const loading = card.querySelector('.url-card-icon--loading');
+    const done = card.querySelector('.url-card-icon--done');
+    const error = card.querySelector('.url-card-icon--error');
+    if (!discard) return;
+    discard.hidden = state !== 'idle';
+    loading.hidden = state !== 'loading';
+    done.hidden = state !== 'done';
+    error.hidden = state !== 'error';
+}
+
+function syncCardActionsAfterRun() {
+    urlCards.querySelectorAll('.url-card').forEach((card) => {
+        if (card.classList.contains('error')) setCardActionState(card, 'error');
+        else setCardActionState(card, 'idle');
+    });
 }
 
 function commitUrls(urls) {
@@ -138,7 +178,7 @@ function renderCards() {
             <div class="url-card-progress"></div>
             <div class="url-card-content">
                 <span class="url-card-text" title="${item.url.replace(/"/g, '&quot;')}">${shortUrl(item.url)}</span>
-                <button type="button" class="url-card-discard" data-id="${item.id}" aria-label="Discard URL" ${running ? 'disabled' : ''}>×</button>
+                ${cardActionHtml(item.id)}
             </div>
         </div>
     `).join('');
@@ -163,10 +203,11 @@ function discardUrl(id) {
     }, 280);
 }
 
-function resetCardProgress() {
+function resetCardProgress(forCapture = false) {
     urlCards.querySelectorAll('.url-card').forEach((card) => {
         card.className = 'url-card';
         card.querySelector('.url-card-progress').style.width = '0%';
+        setCardActionState(card, forCapture ? 'pending' : 'idle');
     });
 }
 
@@ -195,11 +236,14 @@ function setCardProgress(url, phase, current, total) {
         if (idx < activeIdx) {
             card.classList.add('done');
             bar.style.width = '100%';
+            setCardActionState(card, 'done');
         } else if (idx === activeIdx) {
             card.classList.add('active');
             bar.style.width = phase === 'capturing' ? '85%' : phase === 'loading' ? '40%' : '20%';
+            setCardActionState(card, 'loading');
         } else {
             bar.style.width = '0%';
+            setCardActionState(card, 'pending');
         }
     });
 }
@@ -212,6 +256,7 @@ function markCardError(url) {
     card.classList.remove('active');
     card.classList.add('error');
     card.querySelector('.url-card-progress').style.width = '100%';
+    setCardActionState(card, 'error');
 }
 
 function finishCardProgress(total) {
@@ -224,6 +269,7 @@ function finishCardProgress(total) {
             card.classList.remove('active');
             card.classList.add('done');
             card.querySelector('.url-card-progress').style.width = '100%';
+            setCardActionState(card, 'done');
         }
     });
 }
@@ -285,10 +331,12 @@ function setRunning(on) {
     htmlBtn.disabled = on;
     viewportBtn.disabled = on;
     discardAllBtn.disabled = on;
+    saveLinksBtn.disabled = on;
+    loadLinksBtn.disabled = on;
     setToolbarCaptureMode(on);
     actionBtn.textContent = on ? 'Cancel' : 'Capture';
     actionBtn.classList.toggle('cancel', on);
-    if (!on) renderCards();
+    if (!on) syncCardActionsAfterRun();
     updateCaptureState();
 }
 
@@ -300,7 +348,7 @@ function showToast(msg) {
 }
 
 async function startCapture() {
-    resetCardProgress();
+    resetCardProgress(true);
     setRunning(true);
 
     const urls = urlItems.map((item) => item.url);
@@ -351,6 +399,36 @@ urlCards.addEventListener('click', (e) => {
 discardAllBtn.addEventListener('click', () => {
     if (!running) showInputView();
 });
+
+async function saveLinks() {
+    if (running || !urlItems.length || !window.api?.saveLinks) return;
+    try {
+        const result = await window.api.saveLinks(urlItems.map((item) => item.url));
+        if (result?.ok) showToast('Links saved');
+    } catch (_) {
+        showToast('Could not save links');
+    }
+}
+
+async function loadLinks() {
+    if (running || !window.api?.loadLinks) return;
+    try {
+        const result = await window.api.loadLinks();
+        if (!result?.ok || !result.content) return;
+        const { urls } = parseInput(result.content);
+        if (urls.length) {
+            commitUrls(urls);
+        } else {
+            urlWell.value = result.content.trim();
+            showToast('No valid links found');
+        }
+    } catch (_) {
+        showToast('Could not load links');
+    }
+}
+
+saveLinksBtn.addEventListener('click', saveLinks);
+loadLinksBtn.addEventListener('click', loadLinks);
 
 async function openFolderPicker() {
     if (running || folderPicker.classList.contains('is-disabled')) return;
@@ -438,4 +516,5 @@ document.addEventListener('keydown', (e) => {
 syncFormatBtn(imagesBtn, saveImages);
 syncFormatBtn(htmlBtn, saveHtml);
 setViewport('1366x900', false);
+updateToolbarActions();
 loadConfig();
