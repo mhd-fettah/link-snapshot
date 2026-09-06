@@ -1,6 +1,6 @@
 {
     "name": "link-snapshot",
-    "version": "0.0.0",
+    "version": "1.0.0",
     "private": true,
     "description": "Paste URLs, capture full-page screenshots and optional HTML to a folder.",
     "license": "MIT",
@@ -9,7 +9,31 @@
         "start": "electron .",
         "build": "electron-builder --win"
     },
+    "dependencies": {
+        "playwright": "^1.63.0",
+        "playwright-extra": "^4.3.6",
+        "puppeteer-extra-plugin-stealth": "^2.11.2"
+    },
     "devDependencies": {
-        "electron": "^33.0.0"
+        "electron": "^33.0.0",
+        "electron-builder": "^25.1.8"
+    },
+    "build": {
+        "appId": "com.n3xt.linksnap",
+        "productName": "LinkSnap",
+        "directories": { "output": "dist" },
+        "files": [
+            "electron/**/*",
+            "src/**/*",
+            "ui/**/*",
+            "package.json"
+        ],
+        "win": {
+            "target": ["nsis", "portable"]
+        },
+        "nsis": {
+            "oneClick": false,
+            "allowToChangeInstallationDirectory": true
+        }
     }
 }

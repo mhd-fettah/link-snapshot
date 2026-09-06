@@ -6,6 +6,8 @@ test-results/
 out/
 output/
 screenshots/
+test-out/
+test-urls.txt
 *.log
 .env
 .env.*
