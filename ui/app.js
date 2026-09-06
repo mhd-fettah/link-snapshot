@@ -1,60 +1,245 @@
 const $ = (id) => document.getElementById(id);
 
 const urlWell = $('urlWell');
-const countPill = $('countPill');
-const metaCaption = $('metaCaption');
+const urlInputWrap = $('urlInputWrap');
+const urlCardsWrap = $('urlCardsWrap');
+const urlCards = $('urlCards');
+const urlAreaToolbar = $('urlAreaToolbar');
+const discardAllBtn = $('discardAllBtn');
+const linkCount = $('linkCount');
+const captureProgress = $('captureProgress');
+const captureProgressFill = $('captureProgressFill');
+const captureProgressLabel = $('captureProgressLabel');
 const folderPath = $('folderPath');
-const browseBtn = $('browseBtn');
+const folderPicker = $('folderPicker');
+const imagesBtn = $('imagesBtn');
+const htmlBtn = $('htmlBtn');
+const viewportBtn = $('viewportBtn');
+const viewportMenu = $('viewportMenu');
+const viewportLabel = $('viewportLabel');
+const viewportWrap = $('viewportWrap');
 const actionBtn = $('actionBtn');
-const actionHint = $('actionHint');
-const progressSection = $('progressSection');
-const progressLabel = $('progressLabel');
-const progressBar = $('progressBar');
-const progressFill = $('progressFill');
-const logEl = $('log');
-const doneSection = $('doneSection');
-const doneText = $('doneText');
-const gearBtn = $('gearBtn');
-const settingsOverlay = $('settingsOverlay');
-const settingsClose = $('settingsClose');
 const toast = $('toast');
 
-let parsed = { urls: [], duplicatesRemoved: 0, invalidSkipped: 0 };
+const ICON_CHECK = '<path d="M10 3L4.5 8.5 2 6" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
+const ICON_OFF = '<path d="M3 6h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>';
+
+const VIEWPORTS = {
+    '390x844': 'Mobile',
+    '768x1024': 'Tablet',
+    '1366x900': 'Laptop',
+    '1536x864': 'Desktop',
+    '1920x1080': 'Full HD',
+};
+
+let urlItems = [];
+let saveImages = true;
 let saveHtml = false;
 let running = false;
 let cancelling = false;
 let configReady = false;
 let outputDir = '';
 let isDefaultFolder = true;
+let inputTimer;
 
-function updateCount() {
-    parsed = window.api.parseUrls(urlWell.value);
-    countPill.textContent = `${parsed.urls.length} URL${parsed.urls.length === 1 ? '' : 's'}`;
-    countPill.classList.remove('bump');
-    void countPill.offsetWidth;
-    countPill.classList.add('bump');
+function parseInput(text) {
+    if (window.api?.parseUrls) return window.api.parseUrls(text);
+    const seen = new Set();
+    const urls = [];
+    for (const line of text.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        try {
+            const url = new URL(trimmed);
+            if (['http:', 'https:'].includes(url.protocol) && !seen.has(url.href)) {
+                seen.add(url.href);
+                urls.push(url.href);
+            }
+        } catch (_) {}
+    }
+    return { urls };
+}
 
-    const parts = [];
-    if (parsed.duplicatesRemoved) parts.push(`${parsed.duplicatesRemoved} duplicates removed`);
-    if (parsed.invalidSkipped) parts.push(`${parsed.invalidSkipped} invalid lines skipped`);
-    metaCaption.textContent = parts.join(' · ');
-    metaCaption.hidden = !parts.length;
+function uid() {
+    return Math.random().toString(36).slice(2, 9);
+}
 
+function shortUrl(url) {
+    try {
+        const u = new URL(url);
+        const path = u.pathname + u.search;
+        const host = u.hostname.replace(/^www\./, '');
+        if (path === '/' || path === '') return host;
+        const p = path.length > 36 ? path.slice(0, 33) + '…' : path;
+        return host + p;
+    } catch {
+        return url.length > 48 ? url.slice(0, 45) + '…' : url;
+    }
+}
+
+function syncFormatBtn(btn, on) {
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.querySelector('.format-icon').innerHTML = on ? ICON_CHECK : ICON_OFF;
+}
+
+function setViewport(value, persist = true) {
+    const v = VIEWPORTS[value] ? value : '1366x900';
+    viewportLabel.textContent = VIEWPORTS[v];
+    document.querySelectorAll('.viewport-option').forEach((opt) => {
+        opt.classList.toggle('active', opt.dataset.viewport === v);
+    });
+    if (persist && window.api?.setConfig) window.api.setConfig({ viewport: v });
+}
+
+function updateLinkCount() {
+    const n = urlItems.length;
+    linkCount.textContent = `${n} link${n === 1 ? '' : 's'}`;
+}
+
+function setToolbarCaptureMode(on) {
+    discardAllBtn.hidden = on;
+    linkCount.hidden = on;
+    captureProgress.hidden = !on;
+    if (!on) {
+        captureProgressFill.style.width = '0%';
+        captureProgressLabel.textContent = '';
+    }
+}
+
+function showInputView() {
+    urlItems = [];
+    urlInputWrap.hidden = false;
+    urlCardsWrap.hidden = true;
+    urlAreaToolbar.hidden = true;
+    urlWell.value = '';
+    urlWell.disabled = false;
     updateCaptureState();
 }
 
-function captureHint() {
-    if (!configReady) return 'Loading…';
-    if (parsed.urls.length === 0) return 'Paste at least one URL';
-    if (!outputDir) return 'Choose a folder';
-    return '';
+function showCardView() {
+    urlInputWrap.hidden = true;
+    urlCardsWrap.hidden = false;
+    urlAreaToolbar.hidden = false;
+    setToolbarCaptureMode(false);
+    updateLinkCount();
+    renderCards();
+    updateCaptureState();
+}
+
+function commitUrls(urls) {
+    urlItems = urls.map((url) => ({ id: uid(), url }));
+    showCardView();
+}
+
+function renderCards() {
+    urlCards.innerHTML = urlItems.map((item) => `
+        <div class="url-card" data-id="${item.id}">
+            <div class="url-card-progress"></div>
+            <div class="url-card-content">
+                <span class="url-card-text" title="${item.url.replace(/"/g, '&quot;')}">${shortUrl(item.url)}</span>
+                <button type="button" class="url-card-discard" data-id="${item.id}" aria-label="Discard URL" ${running ? 'disabled' : ''}>×</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function discardUrl(id) {
+    const card = urlCards.querySelector(`.url-card[data-id="${id}"]`);
+    if (!card || card.classList.contains('removing')) return;
+
+    card.style.maxHeight = `${card.offsetHeight}px`;
+    requestAnimationFrame(() => {
+        card.classList.add('removing');
+        card.style.maxHeight = '0';
+    });
+
+    setTimeout(() => {
+        urlItems = urlItems.filter((item) => item.id !== id);
+        card.remove();
+        updateLinkCount();
+        updateCaptureState();
+        if (!urlItems.length) showInputView();
+    }, 280);
+}
+
+function resetCardProgress() {
+    urlCards.querySelectorAll('.url-card').forEach((card) => {
+        card.className = 'url-card';
+        card.querySelector('.url-card-progress').style.width = '0%';
+    });
+}
+
+function setOverallProgress(current, total, phase) {
+    const phaseW = phase === 'capturing' ? 0.85 : phase === 'loading' ? 0.4 : 0.2;
+    captureProgressFill.style.width = `${((current - 1) + phaseW) / total * 100}%`;
+    captureProgressLabel.textContent = `${current} / ${total}`;
+}
+
+function scrollToCard(idx) {
+    const card = urlCards.querySelectorAll('.url-card')[idx];
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function setCardProgress(url, phase, current, total) {
+    const activeIdx = urlItems.findIndex((item) => item.url === url);
+    if (activeIdx < 0) return;
+
+    if (current && total) setOverallProgress(current, total, phase);
+    scrollToCard(activeIdx);
+
+    urlCards.querySelectorAll('.url-card').forEach((card, idx) => {
+        const bar = card.querySelector('.url-card-progress');
+        card.classList.remove('active', 'done', 'error');
+
+        if (idx < activeIdx) {
+            card.classList.add('done');
+            bar.style.width = '100%';
+        } else if (idx === activeIdx) {
+            card.classList.add('active');
+            bar.style.width = phase === 'capturing' ? '85%' : phase === 'loading' ? '40%' : '20%';
+        } else {
+            bar.style.width = '0%';
+        }
+    });
+}
+
+function markCardError(url) {
+    const idx = urlItems.findIndex((item) => item.url === url);
+    if (idx < 0) return;
+    const card = urlCards.querySelectorAll('.url-card')[idx];
+    if (!card) return;
+    card.classList.remove('active');
+    card.classList.add('error');
+    card.querySelector('.url-card-progress').style.width = '100%';
+}
+
+function finishCardProgress(total) {
+    if (total) {
+        captureProgressFill.style.width = '100%';
+        captureProgressLabel.textContent = `${total} / ${total}`;
+    }
+    urlCards.querySelectorAll('.url-card').forEach((card) => {
+        if (!card.classList.contains('error')) {
+            card.classList.remove('active');
+            card.classList.add('done');
+            card.querySelector('.url-card-progress').style.width = '100%';
+        }
+    });
+}
+
+function processInput() {
+    const { urls } = parseInput(urlWell.value);
+    if (urls.length) commitUrls(urls);
+}
+
+function scheduleProcessInput() {
+    clearTimeout(inputTimer);
+    inputTimer = setTimeout(processInput, 400);
 }
 
 function updateCaptureState() {
-    const hint = captureHint();
-    actionHint.textContent = running || cancelling ? '' : hint;
-    actionBtn.disabled = running ? cancelling : (!configReady || parsed.urls.length === 0 || !outputDir);
-    actionBtn.title = hint;
+    actionBtn.disabled = running ? cancelling : (!configReady || !urlItems.length || (!saveImages && !saveHtml));
 }
 
 function truncatePath(p) {
@@ -63,90 +248,48 @@ function truncatePath(p) {
 }
 
 function setFolderDisplay() {
-    const label = truncatePath(outputDir);
+    const label = truncatePath(outputDir) || 'Downloads';
     folderPath.textContent = isDefaultFolder ? `${label} (default)` : label;
-    folderPath.title = `${outputDir}\nClick to copy`;
+    folderPicker.title = outputDir ? `${outputDir}\nClick to change folder` : 'Click to choose folder';
 }
 
 async function loadConfig() {
-    const config = await window.api.getConfig();
-    outputDir = config.outputDir;
-    isDefaultFolder = config.isDefaultFolder;
-    configReady = true;
-    setFolderDisplay();
-    document.documentElement.dataset.theme = config.theme || 'light';
-    syncSettingsUI(config);
-    updateCaptureState();
+    try {
+        if (window.api?.getConfig) {
+            const config = await window.api.getConfig();
+            outputDir = config.outputDir || '';
+            isDefaultFolder = config.isDefaultFolder ?? true;
+            setViewport(config.viewport || '1366x900', false);
+        }
+    } catch (_) {
+        outputDir = '';
+        isDefaultFolder = true;
+    } finally {
+        configReady = true;
+        setFolderDisplay();
+        updateCaptureState();
+    }
 }
 
-function syncSettingsUI(config) {
-    document.querySelectorAll('.settings-segment [data-theme]').forEach((btn) => {
-        btn.classList.toggle('active', btn.dataset.theme === config.theme);
-    });
-    document.querySelectorAll('[data-viewport]').forEach((btn) => {
-        btn.classList.toggle('active', btn.dataset.viewport === config.viewport);
-    });
+function setFolderPickerEnabled(on) {
+    folderPicker.classList.toggle('is-disabled', !on);
+    folderPicker.tabIndex = on ? 0 : -1;
 }
 
 function setRunning(on) {
     running = on;
     cancelling = false;
     urlWell.disabled = on;
-    browseBtn.disabled = on;
+    setFolderPickerEnabled(!on);
+    imagesBtn.disabled = on;
+    htmlBtn.disabled = on;
+    viewportBtn.disabled = on;
+    discardAllBtn.disabled = on;
+    setToolbarCaptureMode(on);
     actionBtn.textContent = on ? 'Cancel' : 'Capture';
     actionBtn.classList.toggle('cancel', on);
-    progressBar.hidden = !on;
-    progressSection.classList.toggle('active', on);
-    if (!on) {
-        progressFill.style.width = '0%';
-        progressLabel.textContent = '';
-    }
+    if (!on) renderCards();
     updateCaptureState();
-}
-
-function appendLog(message, level = 'info') {
-    const line = document.createElement('div');
-    line.className = `log-line log-${level}`;
-    line.textContent = message;
-    logEl.appendChild(line);
-    logEl.scrollTop = logEl.scrollHeight;
-}
-
-function formatProgress(e) {
-    const base = `${e.current} / ${e.total}`;
-    const host = e.host || '';
-    if (e.phase === 'loading') return `${base} · Loading ${host}…`;
-    if (e.phase === 'capturing') return `${base} · Capturing ${host}…`;
-    return `${base} · ${host}`;
-}
-
-function showDone(result) {
-    const path = truncatePath(result.outputDir);
-    const fullPath = result.outputDir;
-    let text = '';
-    let kind = 'success';
-
-    if (result.cancelled) {
-        kind = result.saved > 0 ? 'warning' : 'cancelled';
-        if (result.saved > 0) {
-            text = `⚠ Cancelled — ${result.saved} saved, ${result.errors} failed · ${path}`;
-        } else {
-            text = `✕ Cancelled — nothing saved`;
-        }
-    } else if (result.saved === 0 && result.errors > 0) {
-        kind = 'error';
-        text = `✕ Failed — ${result.errors} error${result.errors === 1 ? '' : 's'}`;
-    } else if (result.errors > 0) {
-        kind = 'warning';
-        text = `⚠ ${result.saved} saved, ${result.errors} failed · ${path}`;
-    } else {
-        text = `✓ Saved ${result.saved} file${result.saved === 1 ? '' : 's'} to ${path}`;
-    }
-
-    doneSection.className = `done-section done-${kind}`;
-    doneText.textContent = text;
-    doneText.title = fullPath;
-    doneSection.hidden = false;
 }
 
 function showToast(msg) {
@@ -157,24 +300,25 @@ function showToast(msg) {
 }
 
 async function startCapture() {
-    doneSection.hidden = true;
-    logEl.innerHTML = '';
+    resetCardProgress();
     setRunning(true);
-    progressLabel.textContent = `0 / ${parsed.urls.length}`;
+
+    const urls = urlItems.map((item) => item.url);
+    const total = urls.length;
+    captureProgressFill.style.width = '0%';
+    captureProgressLabel.textContent = `0 / ${total}`;
 
     const unsub = window.api.onProgress((e) => {
-        if (e.type === 'progress') {
-            progressLabel.textContent = formatProgress(e);
-            progressFill.style.width = `${(e.current / e.total) * 100}%`;
-        } else if (e.type === 'log') {
-            const level = e.level || (e.message.startsWith('Failed') || e.message.startsWith('Launch') ? 'error' : e.message.startsWith('Saved') ? 'ok' : 'info');
-            appendLog(e.message, level);
+        if (e.type === 'progress') setCardProgress(e.url, e.phase, e.current, e.total);
+        else if (e.type === 'log' && e.message.startsWith('Failed') && e.message.includes(':')) {
+            const failedUrl = urls.find((u) => e.message.includes(new URL(u).hostname.replace(/^www\./, '')));
+            if (failedUrl) markCardError(failedUrl);
         }
     });
 
     try {
-        const result = await window.api.startCapture({ urls: parsed.urls, saveHtml });
-        showDone(result);
+        await window.api.startCapture({ urls, saveImages, saveHtml });
+        finishCardProgress(total);
     } finally {
         unsub();
         setRunning(false);
@@ -182,41 +326,85 @@ async function startCapture() {
     }
 }
 
-function openSettings() {
-    settingsOverlay.hidden = false;
-    settingsClose.focus();
+function closeViewportMenu() {
+    viewportMenu.hidden = true;
+    viewportBtn.setAttribute('aria-expanded', 'false');
 }
 
-function closeSettings() {
-    settingsOverlay.hidden = true;
-    gearBtn.focus();
+function toggleViewportMenu() {
+    const open = viewportMenu.hidden;
+    viewportMenu.hidden = !open;
+    viewportBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
-urlWell.addEventListener('input', updateCount);
-urlWell.addEventListener('paste', () => setTimeout(updateCount, 0));
+urlWell.addEventListener('paste', () => {
+    requestAnimationFrame(() => requestAnimationFrame(processInput));
+});
+urlWell.addEventListener('input', scheduleProcessInput);
+urlWell.addEventListener('blur', processInput);
 
-browseBtn.addEventListener('click', async () => {
-    const folder = await window.api.selectFolder();
-    if (folder) {
-        outputDir = folder;
-        isDefaultFolder = false;
-        setFolderDisplay();
-        updateCaptureState();
+urlCards.addEventListener('click', (e) => {
+    const btn = e.target.closest('.url-card-discard');
+    if (btn && !running) discardUrl(btn.dataset.id);
+});
+
+discardAllBtn.addEventListener('click', () => {
+    if (!running) showInputView();
+});
+
+async function openFolderPicker() {
+    if (running || folderPicker.classList.contains('is-disabled')) return;
+    if (!window.api?.selectFolder) {
+        showToast('Could not open folder picker');
+        return;
+    }
+    try {
+        const folder = await window.api.selectFolder();
+        if (folder) {
+            outputDir = folder;
+            isDefaultFolder = false;
+            setFolderDisplay();
+            updateCaptureState();
+        }
+    } catch (_) {
+        showToast('Could not open folder picker');
+    }
+}
+
+folderPicker.addEventListener('click', openFolderPicker);
+folderPicker.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openFolderPicker();
     }
 });
 
-folderPath.addEventListener('click', async () => {
-    if (!outputDir) return;
-    await navigator.clipboard.writeText(outputDir);
-    showToast('Copied path');
+imagesBtn.addEventListener('click', () => {
+    saveImages = !saveImages;
+    syncFormatBtn(imagesBtn, saveImages);
+    updateCaptureState();
 });
 
-document.querySelector('.format-segment').addEventListener('click', (e) => {
-    const btn = e.target.closest('.segment');
-    if (!btn) return;
-    document.querySelectorAll('.format-segment .segment').forEach((s) => s.classList.remove('active'));
-    btn.classList.add('active');
-    saveHtml = btn.dataset.format === 'html';
+htmlBtn.addEventListener('click', () => {
+    saveHtml = !saveHtml;
+    syncFormatBtn(htmlBtn, saveHtml);
+    updateCaptureState();
+});
+
+viewportBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleViewportMenu();
+});
+
+viewportMenu.addEventListener('click', (e) => {
+    const opt = e.target.closest('.viewport-option');
+    if (!opt) return;
+    setViewport(opt.dataset.viewport);
+    closeViewportMenu();
+});
+
+document.addEventListener('click', (e) => {
+    if (!viewportWrap.contains(e.target)) closeViewportMenu();
 });
 
 actionBtn.addEventListener('click', () => {
@@ -230,36 +418,9 @@ actionBtn.addEventListener('click', () => {
     }
 });
 
-gearBtn.addEventListener('click', openSettings);
-settingsClose.addEventListener('click', closeSettings);
-settingsOverlay.addEventListener('click', (e) => {
-    if (e.target === settingsOverlay) closeSettings();
-});
-
-document.querySelectorAll('.settings-segment [data-theme]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-        const theme = btn.dataset.theme;
-        document.documentElement.dataset.theme = theme;
-        document.querySelectorAll('.settings-segment [data-theme]').forEach((b) => {
-            b.classList.toggle('active', b.dataset.theme === theme);
-        });
-        await window.api.setConfig({ theme });
-    });
-});
-
-document.querySelectorAll('[data-viewport]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-        const viewport = btn.dataset.viewport;
-        document.querySelectorAll('[data-viewport]').forEach((b) => {
-            b.classList.toggle('active', b.dataset.viewport === viewport);
-        });
-        await window.api.setConfig({ viewport });
-    });
-});
-
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-        if (!settingsOverlay.hidden) { closeSettings(); return; }
+        if (!viewportMenu.hidden) { closeViewportMenu(); return; }
         if (running && !cancelling) {
             cancelling = true;
             actionBtn.textContent = 'Cancelling…';
@@ -274,5 +435,7 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+syncFormatBtn(imagesBtn, saveImages);
+syncFormatBtn(htmlBtn, saveHtml);
+setViewport('1366x900', false);
 loadConfig();
-updateCount();

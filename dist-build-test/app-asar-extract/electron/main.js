@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain, shell, Menu } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { capture } = require('../src/capture');
@@ -32,25 +32,19 @@ function resolveOutputDir(config) {
 function createWindow() {
     const iconPath = path.join(__dirname, '..', 'build', 'icon.png');
     mainWindow = new BrowserWindow({
-        width: 504,
-        height: 420,
-        minWidth: 504,
-        maxWidth: 504,
-        minHeight: 420,
-        maxHeight: 420,
-        resizable: false,
+        width: 720,
+        height: 640,
+        minWidth: 640,
+        minHeight: 560,
         title: 'LinkSnap',
         icon: iconPath,
-        autoHideMenuBar: true,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
             nodeIntegration: false,
-            sandbox: false,
         },
     });
 
-    Menu.setApplicationMenu(null);
     mainWindow.loadFile(path.join(__dirname, '..', 'ui', 'index.html'));
 }
 
@@ -60,15 +54,11 @@ function sendProgress(payload) {
     }
 }
 
-ipcMain.handle('select-folder', async (event) => {
-    const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
-    if (!win || win.isDestroyed()) return null;
-    win.focus();
+ipcMain.handle('select-folder', async () => {
     const config = readConfig();
-    const result = await dialog.showOpenDialog(win, {
+    const result = await dialog.showOpenDialog(mainWindow, {
         properties: ['openDirectory'],
         defaultPath: resolveOutputDir(config),
-        title: 'Choose save folder',
     });
     if (result.canceled || !result.filePaths.length) return null;
     const folder = result.filePaths[0];
@@ -90,7 +80,7 @@ ipcMain.handle('set-config', (_, partial) => {
     return { ...config, outputDir: resolveOutputDir(config) };
 });
 
-ipcMain.handle('start-capture', async (_, { urls, saveImages, saveHtml }) => {
+ipcMain.handle('start-capture', async (_, { urls, saveHtml }) => {
     cancelRequested = false;
     const config = readConfig();
     const outputDir = resolveOutputDir(config);
@@ -98,7 +88,6 @@ ipcMain.handle('start-capture', async (_, { urls, saveImages, saveHtml }) => {
     const result = await capture({
         urls,
         outputDir,
-        saveImages,
         saveHtml,
         viewport: config.viewport,
         onProgress: (e) => sendProgress(e),

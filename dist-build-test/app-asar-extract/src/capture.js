@@ -50,7 +50,6 @@ async function isBlocked(page) {
 async function capture({
     urls,
     outputDir,
-    saveImages = true,
     saveHtml = false,
     viewport = '1366x900',
     onProgress = () => {},
@@ -131,10 +130,10 @@ async function capture({
                         await retryPage.waitForTimeout(5000);
                         onProgress({ type: 'progress', current: i + 1, total: urls.length, url, host, phase: 'capturing' });
                         if (await isBlocked(retryPage)) throw new Error('Blocked by bot protection');
-                        if (saveImages) await retryPage.screenshot({ path: pngPath, fullPage: true });
+                        await retryPage.screenshot({ path: pngPath, fullPage: true });
                         if (saveHtml) fs.writeFileSync(htmlPath, await retryPage.content(), 'utf8');
                         saved++;
-                        log(`Saved ${baseName}${saveImages && saveHtml ? '.png + .html' : saveImages ? '.png' : '.html'}`, 'ok');
+                        log(`Saved ${baseName}.png`, 'ok');
                     } finally {
                         await retryPage.close();
                     }
@@ -143,10 +142,10 @@ async function capture({
                 throw new Error('Blocked by bot protection');
             }
 
-            if (saveImages) await page.screenshot({ path: pngPath, fullPage: true });
+            await page.screenshot({ path: pngPath, fullPage: true });
             if (saveHtml) fs.writeFileSync(htmlPath, await page.content(), 'utf8');
             saved++;
-            log(`Saved ${baseName}${saveImages && saveHtml ? '.png + .html' : saveImages ? '.png' : '.html'}`, 'ok');
+            log(`Saved ${baseName}.png`, 'ok');
         } catch (err) {
             errors++;
             log(`Failed ${host}: ${err.message}`, 'error');

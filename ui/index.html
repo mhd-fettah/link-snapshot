@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,69 +8,65 @@
 </head>
 <body>
     <div class="app">
-        <button type="button" class="gear-btn" id="gearBtn" aria-label="Settings">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319z"/></svg>
-        </button>
+        <div class="app-main">
+            <div class="url-area">
+                <div class="url-area-toolbar" id="urlAreaToolbar" hidden>
+                    <button type="button" class="text-btn" id="discardAllBtn">Discard all</button>
+                    <span class="link-count" id="linkCount"></span>
+                    <div class="capture-progress" id="captureProgress" hidden>
+                        <div class="capture-progress-track">
+                            <div class="capture-progress-fill" id="captureProgressFill"></div>
+                        </div>
+                        <span class="capture-progress-label" id="captureProgressLabel"></span>
+                    </div>
+                </div>
+                <div class="url-input-wrap" id="urlInputWrap">
+                    <textarea id="urlWell" class="url-well" placeholder="Paste your URLs here&#10;One link per line" spellcheck="false"></textarea>
+                </div>
+                <div class="url-cards-wrap" id="urlCardsWrap" hidden>
+                    <div class="url-cards" id="urlCards"></div>
+                </div>
+            </div>
 
-        <textarea id="urlWell" class="url-well" placeholder="Paste URLs, one per line" spellcheck="false"></textarea>
+            <div class="format-row" role="group" aria-label="Output formats">
+                <div class="images-group" id="imagesGroup">
+                    <button type="button" class="format-btn active" id="imagesBtn" aria-pressed="true">
+                        <svg class="format-icon" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M10 3L4.5 8.5 2 6" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        Images
+                    </button>
+                    <div class="viewport-wrap" id="viewportWrap">
+                        <button type="button" class="viewport-btn" id="viewportBtn" aria-haspopup="listbox" aria-expanded="false">
+                            <span id="viewportLabel">Laptop</span>
+                            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 4l3 3 3-3" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>
+                        </button>
+                        <div class="viewport-menu" id="viewportMenu" hidden role="listbox">
+                            <button type="button" class="viewport-option" data-viewport="390x844" data-label="Mobile">Mobile · 390×844</button>
+                            <button type="button" class="viewport-option" data-viewport="768x1024" data-label="Tablet">Tablet · 768×1024</button>
+                            <button type="button" class="viewport-option active" data-viewport="1366x900" data-label="Laptop">Laptop · 1366×900</button>
+                            <button type="button" class="viewport-option" data-viewport="1536x864" data-label="Desktop">Desktop · 1536×864</button>
+                            <button type="button" class="viewport-option" data-viewport="1920x1080" data-label="Full HD">Full HD · 1920×1080</button>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="format-btn" id="htmlBtn" aria-pressed="false">
+                    <svg class="format-icon" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 6h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    HTML
+                </button>
+            </div>
 
-        <div class="meta-row">
-            <span class="count-pill" id="countPill">0 URLs</span>
-            <span class="meta-caption" id="metaCaption" hidden></span>
+            <div class="folder-picker" id="folderPicker" role="button" tabindex="0">
+                <span class="folder-label">Save to:</span>
+                <span class="folder-path" id="folderPath">Downloads</span>
+            </div>
+
         </div>
 
-        <div class="segmented format-segment" role="group" aria-label="Output format">
-            <button type="button" class="segment active" data-format="images">Images</button>
-            <button type="button" class="segment" data-format="html" title="Images + HTML">+ HTML</button>
-        </div>
-
-        <div class="folder-row">
-            <span class="folder-label">Save to:</span>
-            <button type="button" class="folder-path" id="folderPath" title="">Downloads</button>
-            <button type="button" class="btn-secondary" id="browseBtn">Browse</button>
-        </div>
-
-        <div class="progress-section" id="progressSection">
-            <div class="progress-label" id="progressLabel" aria-live="polite"></div>
-            <div class="progress-bar" id="progressBar" hidden><div class="progress-fill" id="progressFill"></div></div>
-            <div class="log" id="log" aria-live="polite"></div>
-        </div>
-
-        <div class="done-section" id="doneSection" hidden>
-            <p class="done-text" id="doneText"></p>
-        </div>
-
-        <p class="action-hint" id="actionHint"></p>
-        <button type="button" class="btn-capture" id="actionBtn" disabled>Capture</button>
+        <footer class="app-footer">
+            <button type="button" class="btn-capture" id="actionBtn" disabled>Capture</button>
+        </footer>
     </div>
 
     <div class="toast" id="toast" hidden></div>
-
-    <div class="settings-overlay" id="settingsOverlay" hidden>
-        <div class="settings-card" id="settingsCard" role="dialog" aria-labelledby="settingsTitle">
-            <h2 class="settings-title" id="settingsTitle">Settings</h2>
-
-            <div class="settings-group">
-                <label class="settings-label">Appearance</label>
-                <div class="segmented settings-segment" role="group">
-                    <button type="button" class="segment active" data-theme="light">Light</button>
-                    <button type="button" class="segment" data-theme="dark">Dark</button>
-                </div>
-            </div>
-
-            <div class="settings-group">
-                <label class="settings-label">Viewport</label>
-                <div class="segmented settings-segment viewport-segment" role="group">
-                    <button type="button" class="segment" data-viewport="1280x800">1280×800</button>
-                    <button type="button" class="segment active" data-viewport="1366x900">1366×900</button>
-                    <button type="button" class="segment" data-viewport="1920x1080">1920×1080</button>
-                </div>
-            </div>
-
-            <button type="button" class="btn-secondary settings-close" id="settingsClose">Done</button>
-        </div>
-    </div>
-
     <script src="app.js"></script>
 </body>
 </html>

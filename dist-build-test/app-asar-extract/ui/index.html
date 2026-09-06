@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinkSnap</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app">
+        <button type="button" class="gear-btn" id="gearBtn" aria-label="Settings">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319z"/></svg>
+        </button>
+
+        <textarea id="urlWell" class="url-well" placeholder="Paste URLs, one per line" spellcheck="false"></textarea>
+
+        <div class="meta-row">
+            <span class="count-pill" id="countPill">0 URLs</span>
+            <span class="meta-caption" id="metaCaption" hidden></span>
+        </div>
+
+        <div class="segmented format-segment" role="group" aria-label="Output format">
+            <button type="button" class="segment active" data-format="images">Images</button>
+            <button type="button" class="segment" data-format="html" title="Images + HTML">+ HTML</button>
+        </div>
+
+        <div class="folder-row">
+            <span class="folder-label">Save to:</span>
+            <button type="button" class="folder-path" id="folderPath" title="">Downloads</button>
+            <button type="button" class="btn-secondary" id="browseBtn">Browse</button>
+        </div>
+
+        <div class="progress-section" id="progressSection">
+            <div class="progress-label" id="progressLabel" aria-live="polite"></div>
+            <div class="progress-bar" id="progressBar" hidden><div class="progress-fill" id="progressFill"></div></div>
+            <div class="log" id="log" aria-live="polite"></div>
+        </div>
+
+        <div class="done-section" id="doneSection" hidden>
+            <p class="done-text" id="doneText"></p>
+        </div>
+
+        <p class="action-hint" id="actionHint"></p>
+        <button type="button" class="btn-capture" id="actionBtn" disabled>Capture</button>
+    </div>
+
+    <div class="toast" id="toast" hidden></div>
+
+    <div class="settings-overlay" id="settingsOverlay" hidden>
+        <div class="settings-card" id="settingsCard" role="dialog" aria-labelledby="settingsTitle">
+            <h2 class="settings-title" id="settingsTitle">Settings</h2>
+
+            <div class="settings-group">
+                <label class="settings-label">Appearance</label>
+                <div class="segmented settings-segment" role="group">
+                    <button type="button" class="segment active" data-theme="light">Light</button>
+                    <button type="button" class="segment" data-theme="dark">Dark</button>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <label class="settings-label">Viewport</label>
+                <div class="segmented settings-segment viewport-segment" role="group">
+                    <button type="button" class="segment" data-viewport="1280x800">1280×800</button>
+                    <button type="button" class="segment active" data-viewport="1366x900">1366×900</button>
+                    <button type="button" class="segment" data-viewport="1920x1080">1920×1080</button>
+                </div>
+            </div>
+
+            <button type="button" class="btn-secondary settings-close" id="settingsClose">Done</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
