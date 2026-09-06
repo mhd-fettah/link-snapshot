@@ -7,7 +7,7 @@
     "main": "electron/main.js",
     "scripts": {
         "start": "electron .",
-        "build": "electron-builder --win"
+        "build": "node scripts/build-win.js"
     },
     "dependencies": {
         "playwright": "^1.63.0",
