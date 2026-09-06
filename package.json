@@ -15,13 +15,15 @@
         "puppeteer-extra-plugin-stealth": "^2.11.2"
     },
     "devDependencies": {
-        "electron": "^33.0.0",
-        "electron-builder": "^25.1.8"
+        "electron": "^44.2.0",
+        "electron-builder": "^26.15.3"
     },
     "build": {
         "appId": "com.n3xt.linksnap",
         "productName": "LinkSnap",
-        "directories": { "output": "dist" },
+        "directories": {
+            "output": "dist"
+        },
         "icon": "build/icon.png",
         "files": [
             "electron/**/*",
@@ -31,7 +33,10 @@
             "package.json"
         ],
         "win": {
-            "target": ["nsis", "portable"]
+            "target": [
+                "nsis",
+                "portable"
+            ]
         },
         "nsis": {
             "oneClick": false,
