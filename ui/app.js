@@ -21,6 +21,9 @@ const viewportMenu = $('viewportMenu');
 const viewportLabel = $('viewportLabel');
 const viewportWrap = $('viewportWrap');
 const actionBtn = $('actionBtn');
+const captureSplit = $('captureSplit');
+const continueBtn = $('continueBtn');
+const restartBtn = $('restartBtn');
 const toast = $('toast');
 
 const ICON_CHECK = '<path d="M10 3L4.5 8.5 2 6" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
@@ -161,14 +164,57 @@ function setCardActionState(card, state) {
 }
 
 function syncCardActionsAfterRun() {
-    urlCards.querySelectorAll('.url-card').forEach((card) => {
-        if (card.classList.contains('error')) setCardActionState(card, 'error');
-        else setCardActionState(card, 'idle');
+    syncCardsFromStatus();
+}
+
+function hasPartialProgress() {
+    const hasDone = urlItems.some((item) => item.status === 'done');
+    const hasPending = urlItems.some((item) => item.status === 'pending' || item.status === 'error');
+    return hasDone && hasPending;
+}
+
+function updateActionButtons() {
+    const partial = !running && hasPartialProgress();
+    actionBtn.hidden = partial;
+    captureSplit.hidden = !partial;
+}
+
+function syncCardsFromStatus() {
+    urlCards.querySelectorAll('.url-card').forEach((card, idx) => {
+        const item = urlItems[idx];
+        if (!item) return;
+        const bar = card.querySelector('.url-card-progress');
+        card.classList.remove('active', 'done', 'error');
+        if (item.status === 'done') {
+            card.classList.add('done');
+            bar.style.width = '100%';
+            setCardActionState(card, 'done');
+        } else if (item.status === 'error') {
+            card.classList.add('error');
+            bar.style.width = '100%';
+            setCardActionState(card, 'error');
+        } else {
+            bar.style.width = '0%';
+            setCardActionState(card, 'idle');
+        }
     });
 }
 
+function finalizeCancelledCapture() {
+    urlCards.querySelectorAll('.url-card').forEach((card, idx) => {
+        if (!card.classList.contains('active')) return;
+        card.classList.remove('active');
+        const item = urlItems[idx];
+        if (item?.status === 'pending') {
+            card.querySelector('.url-card-progress').style.width = '0%';
+            setCardActionState(card, 'idle');
+        }
+    });
+    syncCardsFromStatus();
+}
+
 function commitUrls(urls) {
-    urlItems = urls.map((url) => ({ id: uid(), url }));
+    urlItems = urls.map((url) => ({ id: uid(), url, status: 'pending' }));
     showCardView();
 }
 
@@ -182,6 +228,7 @@ function renderCards() {
             </div>
         </div>
     `).join('');
+    syncCardsFromStatus();
 }
 
 function discardUrl(id) {
@@ -203,8 +250,11 @@ function discardUrl(id) {
     }, 280);
 }
 
-function resetCardProgress(forCapture = false) {
-    urlCards.querySelectorAll('.url-card').forEach((card) => {
+function resetCardProgress(forCapture = false, continueMode = false) {
+    urlCards.querySelectorAll('.url-card').forEach((card, idx) => {
+        const item = urlItems[idx];
+        if (continueMode && item?.status === 'done') return;
+        if (continueMode && item?.status === 'error') return;
         card.className = 'url-card';
         card.querySelector('.url-card-progress').style.width = '0%';
         setCardActionState(card, forCapture ? 'pending' : 'idle');
@@ -234,6 +284,7 @@ function setCardProgress(url, phase, current, total) {
         card.classList.remove('active', 'done', 'error');
 
         if (idx < activeIdx) {
+            if (urlItems[idx].status !== 'error') urlItems[idx].status = 'done';
             card.classList.add('done');
             bar.style.width = '100%';
             setCardActionState(card, 'done');
@@ -251,6 +302,7 @@ function setCardProgress(url, phase, current, total) {
 function markCardError(url) {
     const idx = urlItems.findIndex((item) => item.url === url);
     if (idx < 0) return;
+    urlItems[idx].status = 'error';
     const card = urlCards.querySelectorAll('.url-card')[idx];
     if (!card) return;
     card.classList.remove('active');
@@ -264,6 +316,9 @@ function finishCardProgress(total) {
         captureProgressFill.style.width = '100%';
         captureProgressLabel.textContent = `${total} / ${total}`;
     }
+    urlItems.forEach((item) => {
+        if (item.status === 'pending') item.status = 'done';
+    });
     urlCards.querySelectorAll('.url-card').forEach((card) => {
         if (!card.classList.contains('error')) {
             card.classList.remove('active');
@@ -285,7 +340,11 @@ function scheduleProcessInput() {
 }
 
 function updateCaptureState() {
-    actionBtn.disabled = running ? cancelling : (!configReady || !urlItems.length || (!saveImages && !saveHtml));
+    const canCapture = configReady && urlItems.length && (saveImages || saveHtml);
+    actionBtn.disabled = running ? cancelling : !canCapture;
+    continueBtn.disabled = !canCapture;
+    restartBtn.disabled = !canCapture;
+    updateActionButtons();
 }
 
 function truncatePath(p) {
@@ -324,7 +383,7 @@ function setFolderPickerEnabled(on) {
 
 function setRunning(on) {
     running = on;
-    cancelling = false;
+    if (!on) cancelling = false;
     urlWell.disabled = on;
     setFolderPickerEnabled(!on);
     imagesBtn.disabled = on;
@@ -334,6 +393,8 @@ function setRunning(on) {
     saveLinksBtn.disabled = on;
     loadLinksBtn.disabled = on;
     setToolbarCaptureMode(on);
+    actionBtn.hidden = on ? false : hasPartialProgress();
+    captureSplit.hidden = on || !hasPartialProgress();
     actionBtn.textContent = on ? 'Cancel' : 'Capture';
     actionBtn.classList.toggle('cancel', on);
     if (!on) syncCardActionsAfterRun();
@@ -347,26 +408,53 @@ function showToast(msg) {
     showToast._t = setTimeout(() => { toast.hidden = true; }, 2000);
 }
 
-async function startCapture() {
-    resetCardProgress(true);
+async function startCapture({ restart = false } = {}) {
+    const continueMode = !restart && hasPartialProgress();
+
+    if (restart) {
+        urlItems.forEach((item) => { item.status = 'pending'; });
+        resetCardProgress(true);
+    } else if (continueMode) {
+        urlItems.forEach((item) => {
+            if (item.status !== 'done') item.status = 'pending';
+        });
+        resetCardProgress(true, true);
+    } else {
+        urlItems.forEach((item) => { item.status = 'pending'; });
+        resetCardProgress(true);
+    }
+
     setRunning(true);
 
-    const urls = urlItems.map((item) => item.url);
+    const urls = continueMode
+        ? urlItems.filter((item) => item.status !== 'done').map((item) => item.url)
+        : urlItems.map((item) => item.url);
     const total = urls.length;
+    let activeUrl = null;
+
     captureProgressFill.style.width = '0%';
     captureProgressLabel.textContent = `0 / ${total}`;
 
     const unsub = window.api.onProgress((e) => {
-        if (e.type === 'progress') setCardProgress(e.url, e.phase, e.current, e.total);
-        else if (e.type === 'log' && e.message.startsWith('Failed') && e.message.includes(':')) {
+        if (e.type === 'progress') {
+            activeUrl = e.url;
+            setCardProgress(e.url, e.phase, e.current, e.total);
+        } else if (e.type === 'log' && e.message.startsWith('Saved')) {
+            const item = urlItems.find((i) => i.url === activeUrl);
+            if (item) item.status = 'done';
+        } else if (e.type === 'log' && e.message.startsWith('Failed') && e.message.includes(':')) {
             const failedUrl = urls.find((u) => e.message.includes(new URL(u).hostname.replace(/^www\./, '')));
             if (failedUrl) markCardError(failedUrl);
         }
     });
 
     try {
-        await window.api.startCapture({ urls, saveImages, saveHtml });
-        finishCardProgress(total);
+        const result = await window.api.startCapture({ urls, saveImages, saveHtml });
+        if (result?.cancelled) {
+            finalizeCancelledCapture();
+        } else {
+            finishCardProgress(total);
+        }
     } finally {
         unsub();
         setRunning(false);
@@ -492,8 +580,16 @@ actionBtn.addEventListener('click', () => {
         actionBtn.disabled = true;
         window.api.cancelCapture();
     } else if (!running) {
-        startCapture();
+        startCapture({ restart: false });
     }
+});
+
+continueBtn.addEventListener('click', () => {
+    if (!running) startCapture({ restart: false });
+});
+
+restartBtn.addEventListener('click', () => {
+    if (!running) startCapture({ restart: true });
 });
 
 document.addEventListener('keydown', (e) => {
@@ -507,9 +603,10 @@ document.addEventListener('keydown', (e) => {
         }
         return;
     }
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !running && !actionBtn.disabled) {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !running) {
         e.preventDefault();
-        startCapture();
+        if (hasPartialProgress() && !continueBtn.disabled) continueBtn.click();
+        else if (!actionBtn.hidden && !actionBtn.disabled) startCapture({ restart: false });
     }
 });
 

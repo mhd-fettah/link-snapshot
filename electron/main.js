@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain, shell, Menu } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell, Menu, nativeTheme } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { capture } = require('../src/capture');
@@ -37,7 +37,7 @@ function defaultLinksFilename() {
 
 function createWindow() {
     const iconPath = path.join(__dirname, '..', 'build', 'icon.png');
-    mainWindow = new BrowserWindow({
+    const winOptions = {
         width: 504,
         height: 420,
         minWidth: 504,
@@ -47,6 +47,7 @@ function createWindow() {
         resizable: false,
         title: 'LinkSnap',
         icon: iconPath,
+        backgroundColor: '#191926',
         autoHideMenuBar: true,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
@@ -54,7 +55,18 @@ function createWindow() {
             nodeIntegration: false,
             sandbox: false,
         },
-    });
+    };
+
+    if (process.platform === 'win32') {
+        winOptions.titleBarStyle = 'hidden';
+        winOptions.titleBarOverlay = {
+            color: '#191926',
+            symbolColor: '#1ef2c0',
+            height: 32,
+        };
+    }
+
+    mainWindow = new BrowserWindow(winOptions);
 
     Menu.setApplicationMenu(null);
     mainWindow.loadFile(path.join(__dirname, '..', 'ui', 'index.html'));
@@ -150,7 +162,10 @@ ipcMain.handle('cancel-capture', () => {
     cancelRequested = true;
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+    nativeTheme.themeSource = 'dark';
+    createWindow();
+});
 
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();

@@ -16,3 +16,9 @@ contextBridge.exposeInMainWorld('api', {
         return () => ipcRenderer.removeListener('capture-progress', handler);
     },
 });
+
+if (process.platform === 'win32') {
+    window.addEventListener('DOMContentLoaded', () => {
+        document.documentElement.classList.add('has-titlebar-overlay');
+    });
+}

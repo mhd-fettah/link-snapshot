@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#191926">
     <title>LinkSnap</title>
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -78,6 +79,10 @@
 
         <footer class="app-footer">
             <button type="button" class="btn-capture" id="actionBtn" disabled>Capture</button>
+            <div class="capture-split" id="captureSplit" hidden>
+                <button type="button" class="btn-capture btn-capture-alt" id="continueBtn" disabled>Continue</button>
+                <button type="button" class="btn-capture" id="restartBtn" disabled>Restart</button>
+            </div>
         </footer>
     </div>
 

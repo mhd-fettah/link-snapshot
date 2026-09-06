@@ -1,16 +1,25 @@
 :root {
-    --bg: #F2F2F7;
-    --surface: #FFF;
-    --text: #000000d9;
-    --text-2: #3C3C4399;
-    --text-3: #3C3C434D;
-    --sep: #C6C6C8;
-    --accent: #007AFF;
-    --danger: #FF3B30;
-    --ok: #28CD41;
-    --warn: #FF9500;
+    --light: #1ef2c0;
+    --dark: #222233;
+    --darker: #191926;
+    --bg: var(--darker);
+    --surface: var(--dark);
+    --text: rgba(255, 255, 255, 0.92);
+    --text-2: rgba(255, 255, 255, 0.55);
+    --text-3: rgba(255, 255, 255, 0.35);
+    --sep: color-mix(in srgb, var(--light) 14%, var(--dark));
+    --accent: var(--light);
+    --on-accent: var(--darker);
+    --danger: #ff6b6b;
+    --ok: var(--light);
+    --warn: #ffb020;
     --ease: cubic-bezier(0.22, 1, 0.36, 1);
-    --focus: 0 0 0 3px rgba(0, 122, 255, 0.45);
+    --focus: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+    --titlebar-height: 0px;
+}
+
+html.has-titlebar-overlay {
+    --titlebar-height: 32px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -25,6 +34,7 @@
 html, body {
     height: 100%;
     overflow: hidden;
+    color-scheme: dark;
 }
 
 body {
@@ -41,7 +51,7 @@ body {
     flex-direction: column;
     gap: 8px;
     height: 100%;
-    padding: 10px 16px 12px;
+    padding: calc(var(--titlebar-height)) 16px 12px;
     overflow: hidden;
 }
 
@@ -165,8 +175,29 @@ body {
     font-size: 12px;
     line-height: 1.5;
     resize: none;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
     transition: border-color 150ms var(--ease);
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--accent) 45%, var(--dark)) var(--darker);
+}
+
+.url-well::-webkit-scrollbar {
+    width: 8px;
+}
+
+.url-well::-webkit-scrollbar-track {
+    background: var(--darker);
+    border-radius: 4px;
+}
+
+.url-well::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--accent) 40%, var(--dark));
+    border-radius: 4px;
+    border: 2px solid var(--darker);
+}
+
+.url-well::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--accent) 65%, var(--dark));
 }
 
 .url-well::placeholder {
@@ -217,6 +248,27 @@ body {
     overflow-y: auto;
     min-height: 0;
     padding-right: 2px;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--accent) 45%, var(--dark)) var(--darker);
+}
+
+.url-cards::-webkit-scrollbar {
+    width: 8px;
+}
+
+.url-cards::-webkit-scrollbar-track {
+    background: var(--darker);
+    border-radius: 4px;
+}
+
+.url-cards::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--accent) 40%, var(--dark));
+    border-radius: 4px;
+    border: 2px solid var(--darker);
+}
+
+.url-cards::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--accent) 65%, var(--dark));
 }
 
 .url-card {
@@ -241,14 +293,14 @@ body {
     position: absolute;
     inset: 0 auto 0 0;
     width: 0%;
-    background: rgba(0, 122, 255, 0.14);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
     transition: width 400ms var(--ease);
     pointer-events: none;
 }
 
-.url-card.active .url-card-progress { background: rgba(0, 122, 255, 0.22); }
-.url-card.done .url-card-progress { background: rgba(40, 205, 65, 0.18); }
-.url-card.error .url-card-progress { background: rgba(255, 59, 48, 0.16); }
+.url-card.active .url-card-progress { background: color-mix(in srgb, var(--accent) 24%, transparent); }
+.url-card.done .url-card-progress { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.url-card.error .url-card-progress { background: color-mix(in srgb, var(--danger) 20%, transparent); }
 
 .url-card-content {
     position: relative;
@@ -380,8 +432,8 @@ body {
 
 .images-group .format-btn.active + .viewport-wrap .viewport-btn {
     border-color: var(--accent);
-    color: #fff;
-    background: color-mix(in srgb, var(--accent) 85%, #000);
+    color: var(--on-accent);
+    background: color-mix(in srgb, var(--accent) 88%, var(--darker));
 }
 
 .viewport-menu {
@@ -395,7 +447,7 @@ body {
     border: 1px solid var(--sep);
     border-radius: 8px;
     background: var(--surface);
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.35);
 }
 
 .viewport-menu[hidden] { display: none !important; }
@@ -437,7 +489,7 @@ body {
 .format-btn.active {
     background: var(--accent);
     border-color: var(--accent);
-    color: #fff;
+    color: var(--on-accent);
 }
 
 .format-btn:hover:not(:disabled):not(.active) { background: var(--bg); color: var(--text); }
@@ -507,7 +559,7 @@ body {
     border: none;
     border-radius: 6px;
     background: var(--accent);
-    color: #fff;
+    color: var(--on-accent);
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
@@ -517,7 +569,30 @@ body {
 .btn-capture:hover:not(:disabled) { filter: brightness(1.05); }
 .btn-capture:focus-visible { outline: none; box-shadow: var(--focus); }
 .btn-capture:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn-capture.cancel { background: var(--danger); }
+.btn-capture.cancel { background: var(--danger); color: #fff; }
+
+.capture-split {
+    display: flex;
+    width: 100%;
+}
+
+.capture-split .btn-capture {
+    flex: 1;
+    border-radius: 0;
+}
+
+.capture-split .btn-capture:first-child {
+    border-radius: 6px 0 0 6px;
+    border-right: 1px solid color-mix(in srgb, var(--on-accent) 20%, transparent);
+}
+
+.capture-split .btn-capture:last-child {
+    border-radius: 0 6px 6px 0;
+}
+
+.btn-capture-alt {
+    background: color-mix(in srgb, var(--accent) 75%, var(--dark));
+}
 
 .toast {
     position: fixed;
@@ -530,7 +605,7 @@ body {
     border: 1px solid var(--sep);
     font-size: 12px;
     color: var(--text);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
     z-index: 200;
     animation: fadeIn 200ms var(--ease);
 }
