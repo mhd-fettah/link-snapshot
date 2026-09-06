@@ -16,35 +16,39 @@
 
         <div class="meta-row">
             <span class="count-pill" id="countPill">0 URLs</span>
-            <span class="dupes-caption" id="dupesCaption" hidden></span>
+            <span class="meta-caption" id="metaCaption" hidden></span>
         </div>
 
-        <div class="segmented" role="group" aria-label="Output format">
+        <div class="segmented format-segment" role="group" aria-label="Output format">
             <button type="button" class="segment active" data-format="images">Images</button>
-            <button type="button" class="segment" data-format="html">Images + HTML</button>
+            <button type="button" class="segment" data-format="html" title="Images + HTML">+ HTML</button>
         </div>
 
         <div class="folder-row">
-            <span class="folder-path" id="folderPath" title="">Downloads</span>
+            <span class="folder-label">Save to:</span>
+            <button type="button" class="folder-path" id="folderPath" title="">Downloads</button>
             <button type="button" class="btn-secondary" id="browseBtn">Browse</button>
         </div>
 
-        <div class="progress-section" id="progressSection" hidden>
-            <div class="progress-label" id="progressLabel">0 / 0</div>
-            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-            <div class="log" id="log"></div>
+        <div class="progress-section" id="progressSection">
+            <div class="progress-label" id="progressLabel" aria-live="polite"></div>
+            <div class="progress-bar" id="progressBar" hidden><div class="progress-fill" id="progressFill"></div></div>
+            <div class="log" id="log" aria-live="polite"></div>
         </div>
 
         <div class="done-section" id="doneSection" hidden>
             <p class="done-text" id="doneText"></p>
         </div>
 
+        <p class="action-hint" id="actionHint"></p>
         <button type="button" class="btn-capture" id="actionBtn" disabled>Capture</button>
     </div>
 
+    <div class="toast" id="toast" hidden></div>
+
     <div class="settings-overlay" id="settingsOverlay" hidden>
-        <div class="settings-card" id="settingsCard">
-            <h2 class="settings-title">Settings</h2>
+        <div class="settings-card" id="settingsCard" role="dialog" aria-labelledby="settingsTitle">
+            <h2 class="settings-title" id="settingsTitle">Settings</h2>
 
             <div class="settings-group">
                 <label class="settings-label">Appearance</label>
@@ -56,7 +60,7 @@
 
             <div class="settings-group">
                 <label class="settings-label">Viewport</label>
-                <div class="segmented settings-segment" role="group">
+                <div class="segmented settings-segment viewport-segment" role="group">
                     <button type="button" class="segment" data-viewport="1280x800">1280×800</button>
                     <button type="button" class="segment active" data-viewport="1366x900">1366×900</button>
                     <button type="button" class="segment" data-viewport="1920x1080">1920×1080</button>

@@ -30,12 +30,14 @@ function resolveOutputDir(config) {
 }
 
 function createWindow() {
+    const iconPath = path.join(__dirname, '..', 'build', 'icon.png');
     mainWindow = new BrowserWindow({
         width: 720,
         height: 640,
         minWidth: 640,
         minHeight: 560,
         title: 'LinkSnap',
+        icon: iconPath,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
@@ -53,8 +55,10 @@ function sendProgress(payload) {
 }
 
 ipcMain.handle('select-folder', async () => {
+    const config = readConfig();
     const result = await dialog.showOpenDialog(mainWindow, {
         properties: ['openDirectory'],
+        defaultPath: resolveOutputDir(config),
     });
     if (result.canceled || !result.filePaths.length) return null;
     const folder = result.filePaths[0];
@@ -64,7 +68,11 @@ ipcMain.handle('select-folder', async () => {
 
 ipcMain.handle('get-config', () => {
     const config = readConfig();
-    return { ...config, outputDir: resolveOutputDir(config) };
+    return {
+        ...config,
+        outputDir: resolveOutputDir(config),
+        isDefaultFolder: config.outputDir === null,
+    };
 });
 
 ipcMain.handle('set-config', (_, partial) => {
@@ -86,7 +94,7 @@ ipcMain.handle('start-capture', async (_, { urls, saveHtml }) => {
         shouldCancel: () => cancelRequested,
     });
 
-    shell.openPath(outputDir);
+    if (result.saved > 0) shell.openPath(outputDir);
     return { ...result, outputDir };
 });
 

@@ -1,28 +1,10 @@
-function parseUrls(text) {
-    const seen = new Set();
-    const urls = [];
-    let duplicatesRemoved = 0;
+const { parseUrls } = require('./urls');
 
-    for (const line of text.split(/\r?\n/)) {
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-        try {
-            const url = new URL(trimmed);
-            if (!['http:', 'https:'].includes(url.protocol)) continue;
-            const key = url.href;
-            if (seen.has(key)) {
-                duplicatesRemoved++;
-                continue;
-            }
-            seen.add(key);
-            urls.push(key);
-        } catch {
-            continue;
-        }
-    }
-
-    return { urls, duplicatesRemoved };
-}
+const BROWSER_MSG = {
+    headless: 'Using Chrome (background)',
+    'headed-min': 'Switching to visible browser (minimized)',
+    'headed-full': 'Switching to visible browser',
+};
 
 function parseViewport(viewport) {
     const [w, h] = String(viewport || '1366x900').split('x').map(Number);
@@ -42,9 +24,7 @@ async function launchBrowser(mode) {
     const stealth = require('puppeteer-extra-plugin-stealth')();
     chromium.use(stealth);
 
-    const base = {
-        args: ['--disable-blink-features=AutomationControlled'],
-    };
+    const base = { args: ['--disable-blink-features=AutomationControlled'] };
 
     if (mode === 'headless') {
         base.headless = true;
@@ -64,8 +44,7 @@ async function launchBrowser(mode) {
 }
 
 async function isBlocked(page) {
-    const count = await page.locator('text=Access denied').count();
-    return count > 0;
+    return (await page.locator('text=Access denied').count()) > 0;
 }
 
 async function capture({
@@ -85,6 +64,8 @@ async function capture({
     let modeIndex = 0;
     let blockedOnFirst = false;
 
+    const log = (message, level = 'info') => onProgress({ type: 'log', message, level });
+
     const ensureBrowser = async (forceNext = false) => {
         if (browser && !forceNext) return;
         if (browser) {
@@ -103,13 +84,13 @@ async function capture({
             permissions: ['geolocation'],
             extraHTTPHeaders: { 'Accept-Language': 'en-AE,en;q=0.9,ar;q=0.8' },
         });
-        onProgress({ type: 'log', message: `Browser: ${mode}` });
+        if (forceNext || modeIndex > 0) log(BROWSER_MSG[mode] || `Browser: ${mode}`);
     };
 
     try {
         await ensureBrowser();
     } catch (err) {
-        onProgress({ type: 'log', message: `Launch failed: ${err.message}` });
+        log(`Launch failed: ${err.message}`, 'error');
         return { saved: 0, errors: urls.length };
     }
 
@@ -129,12 +110,13 @@ async function capture({
         const pngPath = path.join(outputDir, `${baseName}.png`);
         const htmlPath = path.join(outputDir, `${baseName}.html`);
 
-        onProgress({ type: 'progress', current: i + 1, total: urls.length, url });
+        onProgress({ type: 'progress', current: i + 1, total: urls.length, url, host, phase: 'loading' });
 
         const page = await context.newPage();
         try {
             await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 });
             await page.waitForTimeout(5000);
+            onProgress({ type: 'progress', current: i + 1, total: urls.length, url, host, phase: 'capturing' });
 
             if (await isBlocked(page)) {
                 if (i === 0 && modeIndex < modes.length - 1) {
@@ -143,16 +125,15 @@ async function capture({
                     await ensureBrowser(true);
                     const retryPage = await context.newPage();
                     try {
+                        onProgress({ type: 'progress', current: i + 1, total: urls.length, url, host, phase: 'loading' });
                         await retryPage.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 });
                         await retryPage.waitForTimeout(5000);
+                        onProgress({ type: 'progress', current: i + 1, total: urls.length, url, host, phase: 'capturing' });
                         if (await isBlocked(retryPage)) throw new Error('Blocked by bot protection');
                         await retryPage.screenshot({ path: pngPath, fullPage: true });
-                        if (saveHtml) {
-                            const html = await retryPage.content();
-                            fs.writeFileSync(htmlPath, html, 'utf8');
-                        }
+                        if (saveHtml) fs.writeFileSync(htmlPath, await retryPage.content(), 'utf8');
                         saved++;
-                        onProgress({ type: 'log', message: `Saved ${baseName}.png` });
+                        log(`Saved ${baseName}.png`, 'ok');
                     } finally {
                         await retryPage.close();
                     }
@@ -162,21 +143,18 @@ async function capture({
             }
 
             await page.screenshot({ path: pngPath, fullPage: true });
-            if (saveHtml) {
-                const html = await page.content();
-                fs.writeFileSync(htmlPath, html, 'utf8');
-            }
+            if (saveHtml) fs.writeFileSync(htmlPath, await page.content(), 'utf8');
             saved++;
-            onProgress({ type: 'log', message: `Saved ${baseName}.png` });
+            log(`Saved ${baseName}.png`, 'ok');
         } catch (err) {
             errors++;
-            onProgress({ type: 'log', message: `Failed ${url}: ${err.message}` });
+            log(`Failed ${host}: ${err.message}`, 'error');
             if (i === 0 && modeIndex === 0 && !blockedOnFirst && modes.length > 1) {
                 await page.close();
                 try {
                     await ensureBrowser(true);
                 } catch (launchErr) {
-                    onProgress({ type: 'log', message: `Retry launch failed: ${launchErr.message}` });
+                    log(`Retry launch failed: ${launchErr.message}`, 'error');
                 }
                 continue;
             }
@@ -200,15 +178,16 @@ if (require.main === module) {
         process.exit(1);
     }
     const text = fs.readFileSync(listFile, 'utf8');
-    const { urls, duplicatesRemoved } = parseUrls(text);
+    const { urls, duplicatesRemoved, invalidSkipped } = parseUrls(text);
     if (duplicatesRemoved) console.log(`${duplicatesRemoved} duplicates removed`);
+    if (invalidSkipped) console.log(`${invalidSkipped} invalid lines skipped`);
     capture({
         urls,
         outputDir: path.resolve(outDir),
         saveHtml: process.argv.includes('--html'),
         onProgress: (e) => {
             if (e.type === 'log') console.log(e.message);
-            else if (e.type === 'progress') console.log(`[${e.current}/${e.total}] ${e.url}`);
+            else if (e.type === 'progress') console.log(`[${e.current}/${e.total}] ${e.host || e.url}`);
         },
     }).then((r) => {
         console.log(`Done. saved=${r.saved} errors=${r.errors}`);

@@ -22,10 +22,12 @@
         "appId": "com.n3xt.linksnap",
         "productName": "LinkSnap",
         "directories": { "output": "dist" },
+        "icon": "build/icon.png",
         "files": [
             "electron/**/*",
             "src/**/*",
             "ui/**/*",
+            "build/icon.png",
             "package.json"
         ],
         "win": {
